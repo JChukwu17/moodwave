@@ -161,7 +161,79 @@
     to { transform: rotate(360deg); }
   }
 
-  /* Band selector */
+  /* ---- Tuner arc (mood selector) ---- */
+  .arc-wrap {
+    display: flex;
+    justify-content: center;
+    padding: 6px 0 10px;
+    position: relative;
+  }
+  .tuner-arc {
+    width: 100%;
+    max-width: 460px;
+    height: 134px;
+    overflow: visible;
+    display: block;
+  }
+  .arc-track {
+    fill: none;
+    stroke: var(--text-muted);
+    stroke-width: 2px;
+    opacity: 0.5;
+  }
+  .arc-glow {
+    fill: none;
+    stroke-width: 7px;
+    stroke-linecap: round;
+    opacity: 0;
+    transition: opacity 220ms ease, stroke 220ms ease;
+  }
+  .arc-wrap.has-active .arc-glow { opacity: 0.7; }
+  .arc-tick {
+    fill: var(--panel);
+    stroke: var(--text-muted);
+    stroke-width: 2px;
+    transition: fill 220ms ease, stroke 220ms ease, r 180ms ease, stroke-width 180ms ease;
+    cursor: pointer;
+  }
+  .arc-tick:hover { fill: #3a2f24; stroke-width: 2.5px; }
+  .arc-tick.active {
+    fill: var(--mood-accent);
+    stroke: #17130f;
+    stroke-width: 2px;
+    r: 7;
+  }
+  .arc-label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    fill: var(--text-muted);
+    transition: fill 200ms ease, opacity 200ms ease;
+    pointer-events: none;
+    dominant-baseline: middle;
+    text-anchor: middle;
+  }
+  .arc-label.active {
+    fill: var(--text);
+    font-weight: 600;
+  }
+
+  /* ---- Mood accent colours (data-driven) ---- */
+  .radio[data-mood="chill"]  { --mood-accent: #7fb8d6; --mood-accent-dim: #2a4750; }
+  .radio[data-mood="focus"]  { --mood-accent: #5fcca2; --mood-accent-dim: #1e4a3c; }
+  .radio[data-mood="energy"] { --mood-accent: #ff8240; --mood-accent-dim: #5a2f18; }
+  .radio[data-mood="retro"]  { --mood-accent: #b490f6; --mood-accent-dim: #382a54; }
+  .radio[data-mood="jazz"]   { --mood-accent: #eac66a; --mood-accent-dim: #4a3f18; }
+  .radio[data-mood="lounge"] { --mood-accent: #f2a1ae; --mood-accent-dim: #552a33; }
+  .radio[data-mood="reggae"] { --mood-accent: #84d671; --mood-accent-dim: #2c4a24; }
+
+  /* ---- Brand tweak: softer nameplate ---- */
+  .brand { padding-bottom: 8px; }
+
+  /* LCD readout — unchanged visually */
+
+  /* ---- Band selector (REMOVED — replaced by tuner arc) ---- */
+  /*
   .bands {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -187,6 +259,7 @@
     border-color: var(--amber);
     font-weight: 600;
   }
+  */
 
   .mood-tagline {
     font-size: 12px;
@@ -284,6 +357,7 @@
     flex-direction: column;
     gap: 6px;
     transition: border-color 150ms ease, transform 100ms ease;
+    position: relative;
   }
   .preset:hover { border-color: var(--amber-dim); }
   .preset.active {
@@ -304,6 +378,22 @@
   .preset-genre {
     font-size: 10.5px;
     color: var(--text-muted);
+  }
+  .preset-avail {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+  }
+  .preset-avail.avail {
+    background: var(--amber);
+  }
+  .preset-avail.unavail {
+    background: var(--rose);
+    opacity: 0.85;
   }
 
   /* Custom station form */
@@ -441,6 +531,14 @@
     letter-spacing: 0.05em;
     white-space: nowrap;
   }
+  .volume-pct {
+    font-size: 10.5px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    min-width: 2.4em;
+    text-align: right;
+    letter-spacing: 0.04em;
+  }
   input[type="range"] {
     -webkit-appearance: none;
     appearance: none;
@@ -449,6 +547,9 @@
     background: var(--line);
     border-radius: 2px;
     outline: none;
+    background-size: 0% 100%;
+    background-repeat: no-repeat;
+    background-image: linear-gradient(90deg, var(--amber) 0%, var(--amber) 100%);
   }
   input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
@@ -508,7 +609,12 @@
     <div class="spinner"><div class="spinner-dot"></div></div>
   </div>
 
-  <div class="bands" id="bands"></div>
+  <div class="arc-wrap" id="arcWrap">
+    <svg class="tuner-arc" id="tunerArc" viewBox="0 0 420 140" preserveAspectRatio="xMidYMid meet" aria-label="Mood tuner">
+      <path class="arc-track" id="arcTrack" d=""></path>
+      <path class="arc-glow" id="arcGlow" d=""></path>
+    </svg>
+  </div>
   <div class="mood-tagline" id="moodTagline"></div>
 
   <div class="favorites-section" id="favoritesSection" style="display:none;">
@@ -542,6 +648,7 @@
     <div class="volume-wrap">
       <span class="volume-label">VOL</span>
       <input type="range" id="volume" min="0" max="100" value="70">
+      <span class="volume-pct" id="volumePct">70%</span>
     </div>
   </div>
 
@@ -598,6 +705,31 @@ const moods = [
       { name: 'Seven Inch Soul', genre: 'Vintage soul 45s', url: 'https://ice1.somafm.com/7soul-256-mp3' },
     ]
   },
+  {
+    id: 'jazz',
+    label: 'Jazz',
+    tagline: 'Instrumental jazz, classic to modern',
+    stations: [
+      { name: 'Sonic Universe', genre: 'Jazz', url: 'https://ice1.somafm.com/sonicuniverse-256-mp3' },
+    ]
+  },
+  {
+    id: 'lounge',
+    label: 'Lounge',
+    tagline: 'Bossa, tiki, and worldly easy listening',
+    stations: [
+      { name: 'Bossa Beyond', genre: 'Bossa nova & world rhythms', url: 'https://ice1.somafm.com/bossa-256-mp3' },
+      { name: 'Tiki Time', genre: 'Tiki, island & world easy listening', url: 'https://ice1.somafm.com/tikitime-256-mp3' },
+    ]
+  },
+  {
+    id: 'reggae',
+    label: 'Reggae',
+    tagline: 'Roots, dub, and island rhythms',
+    stations: [
+      { name: 'Heavyweight Reggae', genre: 'Roots, dub & reggae classics', url: 'https://ice1.somafm.com/reggae-256-mp3' },
+    ]
+  },
 ];
 
 /* ============================================================
@@ -616,6 +748,37 @@ let isConnecting = false;
 let favorites = [];            // { url, name }[]
 const MAX_RECENT = 5;
 let recentlyPlayed = [];       // [{ moodId, url, name }] — most recent first
+
+// Phase 6 — station availability indicators (probe on mood switch + reinforcement from real plays)
+// Session-only cache: cleared on reload. Dot is advisory only — you can still click an "unavailable" station.
+// Probe uses a short HEAD (~2.5s timeout) against the stream URL. 200/204/405 → available; anything else → unavailable.
+// SomaFM ice streams return CORS * and meaningful status codes on HEAD (dev-log lesson: Radio X returns 405 on HEAD,
+// which is treated as "reachable" here; SomaFM ice endpoints respond properly to HEAD).
+const stationAvailability = Object.create(null);  // url -> 'avail' | 'unavail' | undefined
+let probeTimer = null;
+const PROBE_TIMEOUT_MS = 2500;
+
+function probeMoodStations(moodId) {
+  if (probeTimer) { clearTimeout(probeTimer); probeTimer = null; }
+  const mood = moods.find(m => m.id === moodId);
+  if (!mood) return;
+  probeTimer = setTimeout(() => {
+    probeTimer = null;
+    mood.stations.forEach(s => probeStation(s.url));
+  }, 60);
+}
+function probeStation(url) {
+  if (stationAvailability[url] !== undefined) return;
+  fetch(url, { method: 'HEAD', mode: 'cors', signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) })
+    .then(r => {
+      if (r.status === 200 || r.status === 204 || r.status === 405) stationAvailability[url] = 'avail';
+      else stationAvailability[url] = 'unavail';
+    })
+    .catch(() => { stationAvailability[url] = 'unavail'; })
+    .finally(() => { renderPresets(); });
+}
+function markAvailable(url) { if (stationAvailability[url] !== 'avail') { stationAvailability[url] = 'avail'; renderPresets(); } }
+function markUnavailable(url) { if (stationAvailability[url] !== 'unavail') { stationAvailability[url] = 'unavail'; renderPresets(); } }
 
 // ---- persistence (localStorage) ----
 const PREFS_KEY = "moodwave_prefs_v1";
@@ -669,7 +832,10 @@ function clearPrefs() {
 const radioEl = document.getElementById('radio');
 const readoutEl = document.getElementById('readout');
 let player = document.getElementById('player');
-const bandsEl = document.getElementById('bands');
+const arcWrap = document.getElementById('arcWrap');
+const tunerArc = document.getElementById('tunerArc');
+const arcTrack = document.getElementById('arcTrack');
+const arcGlow = document.getElementById('arcGlow');
 const presetsEl = document.getElementById('presets');
 const moodTaglineEl = document.getElementById('moodTagline');
 const stationNameEl = document.getElementById('stationName');
@@ -677,6 +843,7 @@ const stationDescEl = document.getElementById('stationDesc');
 const playBtn = document.getElementById('playBtn');
 const surpriseBtn = document.getElementById('surpriseBtn');
 const volumeEl = document.getElementById('volume');
+const volumePctEl = document.getElementById('volumePct');
 const statusLine = document.getElementById('statusLine');
 const favSection = document.getElementById('favoritesSection');
 const favStrip = document.getElementById('favoritesStrip');
@@ -911,14 +1078,87 @@ function surpriseMe() {
    RENDER
    ============================================================ */
 function renderBands() {
-  bandsEl.innerHTML = '';
-  moods.forEach(m => {
-    const btn = document.createElement('button');
-    btn.className = 'band-btn' + (m.id === activeMoodId ? ' active' : '');
-    btn.textContent = m.label;
-    btn.onclick = () => selectMood(m.id);
-    bandsEl.appendChild(btn);
+  // ---- Tuner arc geometry ----
+  // Arc centre (cx,cy), radius r, spanning theta_start..theta_end (SVG
+  // clockwise angles, y-down). Chosen so the arc bows upward through the top
+  // of the viewBox like a vintage tuner dial.
+  const cx = 210, cy = 124, r = 92;
+  const thetaStart = Math.PI * 1.16;
+  const thetaEnd   = Math.PI * 1.84;
+  const labelR = r + 20;          // label orbit: a bit outside the tick dots
+
+  // Build the arc-path "d" once.  M(start) A(rx,ry,rot,large,sweep,end)
+  const sx = cx + r * Math.cos(thetaStart);
+  const sy = cy + r * Math.sin(thetaStart);
+  const ex = cx + r * Math.cos(thetaEnd);
+  const ey = cy + r * Math.sin(thetaEnd);
+  // short upper arc (span < 180°) swept clockwise in screen space (through the top)
+  const arcD = `M ${sx.toFixed(2)} ${sy.toFixed(2)} A ${r} ${r} 0 0 1 ${ex.toFixed(2)} ${ey.toFixed(2)}`;
+  arcTrack.setAttribute('d', arcD);
+  arcGlow.setAttribute('d', arcD);
+
+  // Clear any previously-pinned ticks/labels (safe to call every render).
+  const existing = arcWrap.querySelectorAll('.arc-tick, .arc-label, .arc-label-bg');
+  existing.forEach(n => n.remove());
+
+  moodTaglineEl.textContent = '';   // set by renderPresets when a mood is active
+
+  moods.forEach((m, i) => {
+    const frac = moods.length === 1 ? 0 : i / (moods.length - 1);
+    const theta = thetaStart + frac * (thetaEnd - thetaStart);
+
+    // Tick dot on the arc
+    const x = cx + r * Math.cos(theta);
+    const y = cy + r * Math.sin(theta);
+    const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    dot.setAttribute('cx', x.toFixed(2));
+    dot.setAttribute('cy', y.toFixed(2));
+    dot.setAttribute('r', '5.5');
+    dot.classList.add('arc-tick');
+    if (m.id === activeMoodId) dot.classList.add('active');
+    dot.addEventListener('click', () => selectMood(m.id));
+    dot.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectMood(m.id); }
+    });
+    dot.setAttribute('role', 'button');
+    dot.setAttribute('tabindex', '0');
+    dot.setAttribute('aria-label', m.label);
+    arcWrap.appendChild(dot);
+
+    // Label just outside the arc (radially outward from centre)
+    const lx = cx + labelR * Math.cos(theta);
+    const ly = cy + labelR * Math.sin(theta);
+    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    label.setAttribute('x', lx.toFixed(2));
+    label.setAttribute('y', ly.toFixed(2));
+    label.textContent = m.label;
+    label.classList.add('arc-label');
+    if (m.id === activeMoodId) label.classList.add('active');
+    arcWrap.appendChild(label);
   });
+
+  // Active arc segment glow: a short arc-horizon highlight centred on the
+  // active mood's theta.  Rendered lazily — only when a mood is active.
+  if (activeMoodId) {
+    const mood = moods.find(m => m.id === activeMoodId);
+    if (mood) {
+      const f = moods.indexOf(mood) / (moods.length - 1);
+      const t = thetaStart + f * (thetaEnd - thetaStart);
+      // a small arc window (±12°) around the active mood
+      const halfWindow = 0.21; // radians ≈ 12°
+      const a0 = Math.max(thetaStart, t - halfWindow);
+      const a1 = Math.min(thetaEnd, t + halfWindow);
+      const x0 = cx + r * Math.cos(a0);
+      const y0 = cy + r * Math.sin(a0);
+      const x1 = cx + r * Math.cos(a1);
+      const y1 = cy + r * Math.sin(a1);
+      // short upper arc (span < 180°) swept clockwise in screen space (through the top)
+        `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${r} ${r} 0 0 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`);
+      arcWrap.classList.add('has-active');
+    }
+  } else {
+    arcWrap.classList.remove('has-active');
+  }
 }
 
 function renderPresets() {
@@ -932,10 +1172,12 @@ function renderPresets() {
   mood.stations.forEach((s, i) => {
     const btn = document.createElement('button');
     btn.className = 'preset' + (s.url === activeStationUrl ? ' active' : '');
+    const avail = stationAvailability[s.url];
     btn.innerHTML = `
       <span class="preset-num">${i + 1}</span>
       <span class="preset-name">${s.name}</span>
       <span class="preset-genre">${s.genre}</span>
+      <span class="preset-avail${avail ? ' ' + avail : ''}"></span>
     `;
     btn.onclick = () => selectStation(s);
     presetsEl.appendChild(btn);
@@ -1001,8 +1243,10 @@ function renderRecent() {
    ============================================================ */
 function selectMood(id) {
   activeMoodId = id;
+  radioEl.dataset.mood = id;
   renderBands();
   renderPresets();
+  probeMoodStations(id);
 }
 
 function selectStation(station, autoplay) {
@@ -1039,12 +1283,14 @@ function selectStation(station, autoplay) {
       isPlaying = true;
       updatePlayState();
       statusLine.textContent = 'Streams from SomaFM · free internet radio';
+      markAvailable(station.url);
     }).catch(() => {
       isConnecting = false;
       readoutEl.classList.remove('loading');
       isPlaying = false;
       updatePlayState();
       statusLine.textContent = 'Stream unavailable right now — pick another station';
+      markUnavailable(station.url);
     });
   } else {
     a.src = station.url;
@@ -1055,12 +1301,14 @@ function selectStation(station, autoplay) {
       isPlaying = true;
       updatePlayState();
       statusLine.textContent = 'Streams from SomaFM · free internet radio';
+      markAvailable(station.url);
     }).catch(() => {
       isConnecting = false;
       readoutEl.classList.remove('loading');
       isPlaying = false;
       updatePlayState();
       statusLine.textContent = 'Could not start playback — try again';
+      markUnavailable(station.url);
     });
   }
 }
@@ -1298,8 +1546,12 @@ document.addEventListener('keydown', (e) => {
 
 volumeEl.addEventListener('input', () => {
   masterVolume = volumeEl.value / 100;
+  volumePctEl.textContent = Math.round(masterVolume * 100) + '%';
+  volumeEl.style.backgroundSize = masterVolume * 100 + '% 100%';
   if (!cf) setPlayerVolume(getAudio(), masterVolume);
 });
+volumePctEl.textContent = Math.round(MASTER_TARGET * 100) + '%';
+volumeEl.style.backgroundSize = MASTER_TARGET * 100 + '% 100%';
 setPlayerVolume(player, MASTER_TARGET);
 
 /* ============================================================
@@ -1379,6 +1631,35 @@ loadPrefs();
 restoreLastStation();
 seedFavorites();
 selectMood(defaultMoodForTime());
+
+/* ============================================================ */
+/*  Missing-init shims — ported from index.html (same call site,  */
+/*  same behaviour). These two functions were called at init but    */
+/*  never defined in moodwave.html, so opening the file threw       */
+/*  ReferenceError and the tuner arc never rendered.               */
+/* ============================================================ */
+
+function restoreLastStation() {
+  if (!lastStation) return;
+  const mood = moods.find(m => m.id === lastStation.moodId);
+  if (!mood) return;
+  selectMood(lastStation.moodId);
+  const station = mood.stations.find(s => s.url === lastStation.url)
+    || { name: lastStation.name, genre: 'Previously played', url: lastStation.url };
+  // Restore UI state without autoplay — wait for a user gesture before
+  // attaching a stream (browsers reject autoplay on load anyway).
+  selectStation(station, false);
+}
+
+function seedFavorites() {
+  // Seed a small set of starter favorites if the user has none yet.
+  if (favorites.length === 0) {
+    favorites.push({ url: 'https://ice1.somafm.com/groovesalad-256-mp3', name: 'Groove Salad' });
+    favorites.push({ url: 'https://ice1.somafm.com/beatblender-256-mp3', name: 'Beat Blender' });
+    renderFavorites();
+    savePrefs();
+  }
+}
 </script>
 
 </body>
